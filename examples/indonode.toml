@@ -1,0 +1,96 @@
+# rpc-prober config for Indonode's public RPCs.
+# Each [[chain]] lists RPCs for one chain. The first RPC is Indonode's own.
+# The others are public RPCs from the Cosmos chain registry, used as a reference height.
+#
+# timeout_ms:  how long one endpoint may take before it counts as down (default 5000).
+# concurrency: how many endpoints are checked at the same time (default 16).
+# chain_id:    optional. If set, an endpoint on another chain gets status "wrong_chain".
+#              For type = "evm" write the decimal chain id (Epix EVM is 1916).
+
+timeout_ms = 5000
+concurrency = 16
+
+[[chain]]
+name = "atomone"
+type = "cosmos"
+chain_id = "atomone-1"
+rpcs = [
+  "https://rpc.atomone.indonode.net",
+  "https://atomone-rpc.allinbits.services",
+  "https://rpc-atomone.ecostake.com",
+]
+
+[[chain]]
+name = "axone"
+type = "cosmos"
+chain_id = "axone-1"
+rpcs = [
+  "https://rpc.axone.indonode.net",
+  "https://rpc.axone.cumulo.com.es",
+  "https://axone-rpc.highstakes.ch",
+]
+
+[[chain]]
+name = "epix"
+type = "cosmos"
+chain_id = "epix_1916-1"
+rpcs = [
+  "https://rpc.epix.indonode.net",
+  "https://rpc.epix.zone",
+  "https://rpc-epix.onenov.xyz",
+]
+
+[[chain]]
+name = "lumen"
+type = "cosmos"
+chain_id = "lumen"
+rpcs = [
+  "https://rpc.lumen.indonode.net",
+  "https://rpc.lumen.chaintools.tech",
+  "https://lumen-rpc.linknode.org",
+]
+
+[[chain]]
+name = "realio"
+type = "cosmos"
+chain_id = "realionetwork_3301-1"
+rpcs = [
+  "https://rpc.realio.indonode.net",
+  "https://rpc.realio.network",
+]
+
+[[chain]]
+name = "safrochain"
+type = "cosmos"
+chain_id = "safrochain-1"
+rpcs = [
+  "https://rpc.safrochain.indonode.net",
+  "https://rpc.safrochain.network",
+  "https://rpc1.safrochain.network",
+]
+
+[[chain]]
+name = "safrochain-testnet"
+type = "cosmos"
+chain_id = "safro-testnet-1"
+rpcs = [
+  "https://rpc.safrochain-t.indonode.net",
+  "https://rpc.testnet.safrochain.com",
+]
+
+[[chain]]
+name = "epix-evm"
+type = "evm"
+chain_id = "1916"
+rpcs = [
+  "https://evmrpc.epix.zone",
+  "https://evm-epix.onenov.xyz",
+]
+
+[[chain]]
+name = "gno"
+type = "tm2"
+chain_id = "gnoland-1"
+rpcs = [
+  "https://rpc.gno.land",
+]
