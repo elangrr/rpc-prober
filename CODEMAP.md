@@ -7,7 +7,7 @@
 - `src/probe/mod.rs`: `HeightSource` trait, `ProbeError`, concurrency (`probe_all`: tokio::spawn + Semaphore), timeout (`probe_one`), HTTP + JSON-RPC envelope helpers.
 - `src/probe/{cosmos,evm,tm2}.rs`: one `HeightSource` impl per chain type + reply parsers.
 - `src/report/{table,json,prom}.rs`: output formats.
-- `tests/probe_mock.rs`: integration test with wiremock (up/down/timeout/refused/wrong chain, concurrency cap).
+- `tests/probe_mock.rs`: integration test with wiremock (up/down/timeout/refused/wrong chain, concurrency cap, Lumen shared-cache regression: wrong_chain + rpc_up 0 for cosmos/tm2/evm).
 - `tests/fixtures/`: real replies + README.md documenting the tm2 shape.
 - `examples/indonode.toml`: Indonode RPCs + public reference RPCs.
 - `README.md`: usage, flags, exit codes, config, JSON schema, Prometheus metrics.

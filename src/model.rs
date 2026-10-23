@@ -151,15 +151,17 @@ fn to_report(outcome: Outcome, best_height: Option<u64>, max_behind: u64) -> End
         Ok(reading) => {
             let behind = blocks_behind(best_height, reading.height);
             report.status = status_for(&target, &reading, behind, max_behind);
+            report.behind = Some(behind);
             if report.status == Status::WrongChain {
                 report.error = Some(format!(
                     "chain id is {}, expected {}",
                     reading.chain_id.as_deref().unwrap_or("unknown"),
                     target.expected_chain_id.as_deref().unwrap_or("unknown"),
                 ));
+                // The height belongs to another chain, so "blocks behind" means nothing.
+                report.behind = None;
             }
             report.height = Some(reading.height);
-            report.behind = Some(behind);
             report.chain_id = reading.chain_id;
         }
     }

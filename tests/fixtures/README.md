@@ -1,6 +1,6 @@
 # Test fixtures
 
-Real replies, fetched on 2026-10-22 and saved unchanged.
+Real replies, saved unchanged (fetched 2026-10-22 unless the table says otherwise).
 
 | File | Source | Request |
 |---|---|---|
@@ -9,6 +9,19 @@ Real replies, fetched on 2026-10-22 and saved unchanged.
 | `evm_block_number.json` | `https://evmrpc.epix.zone` | `POST eth_blockNumber` |
 | `evm_chain_id.json` | `https://evmrpc.epix.zone` | `POST eth_chainId` |
 | `evm_error.json` | `https://evmrpc.epix.zone` | `POST` with an unknown method |
+| `lumen_status.json` | `https://rpc.lumen.indonode.net` (CometBFT 0.38.19), fetched 2026-10-23 | `GET /status` |
+| `lumen_status_limonata_cache.json` | not a capture, see below | `GET /status` |
+
+`lumen_status_limonata_cache.json` reproduces a production bug: a shared nginx
+cache made `rpc.lumen.indonode.net` answer with another chain's `/status`
+(network `limonata_10777-1`, height 4,923,377). It is `lumen_status.json` with
+only those two values changed:
+
+```sh
+sed -e 's/"network":"lumen"/"network":"limonata_10777-1"/' \
+    -e 's/"latest_block_height":"5302462"/"latest_block_height":"4923377"/' \
+    lumen_status.json > lumen_status_limonata_cache.json
+```
 
 ## tm2 (Gno) `/status` compared with CometBFT
 

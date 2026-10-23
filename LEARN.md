@@ -409,6 +409,21 @@ struct JsonReport<'a> {
 
 Writes Prometheus metrics as text.
 
+**One rule, one function.** Prometheus has no `status` label, so `rpc_up` must
+carry the verdict. An endpoint behind a shared cache once answered for another
+chain: it had a height, so an early version wrote `rpc_up 1` and a huge
+`rpc_blocks_behind`. Now one small function decides what "up" means, and every
+metric uses it:
+
+```rust
+fn is_up(r: &EndpointReport) -> bool {
+    r.height.is_some() && r.status != Status::WrongChain
+}
+```
+
+**Iterator filter.** `reports.iter().filter(|r| is_up(r))` walks only the rows
+that pass the test, without building a new list.
+
 **`&mut` borrow.** Helper functions get `out: &mut String`: a borrow that may
 change the string. Only one `&mut` can exist at a time, which rules out many bugs.
 

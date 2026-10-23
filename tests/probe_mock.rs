@@ -153,3 +153,85 @@ async fn concurrency_cap_limits_parallel_requests() {
     assert!(start.elapsed() >= delay * 2, "took {:?}", start.elapsed());
     assert!(outcomes.iter().all(|o| o.result.is_ok()));
 }
+
+const LUMEN_STATUS: &str = include_str!("fixtures/lumen_status.json");
+const LIMONATA_FROM_LUMEN_URL: &str = include_str!("fixtures/lumen_status_limonata_cache.json");
+
+/// Regression: rpc.lumen.indonode.net once answered /status with another
+/// chain's reply (network "limonata_10777-1", height 4,923,377) from a shared
+/// nginx cache. The report must say wrong_chain, with no blocks-behind number,
+/// and Prometheus must see rpc_up 0, for cosmos, tm2 and evm alike.
+#[tokio::test]
+async fn endpoint_answering_for_another_network_is_wrong_chain_and_down_in_prom() {
+    let lumen_ok = status_server(200, LUMEN_STATUS, Duration::ZERO).await;
+    let lumen_cached = status_server(200, LIMONATA_FROM_LUMEN_URL, Duration::ZERO).await;
+    let gno = status_server(200, TM2_STATUS, Duration::ZERO).await;
+
+    let evm = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(body_string_contains("eth_blockNumber"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(EVM_BLOCK_NUMBER))
+        .mount(&evm)
+        .await;
+    Mock::given(method("POST"))
+        .and(body_string_contains("eth_chainId"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(EVM_CHAIN_ID))
+        .mount(&evm)
+        .await;
+
+    let targets = vec![
+        target("lumen", ChainType::Cosmos, Some("lumen"), lumen_ok.uri()),
+        target(
+            "lumen",
+            ChainType::Cosmos,
+            Some("lumen"),
+            lumen_cached.uri(),
+        ),
+        // The gno fixture says gnoland-1, the evm fixture says 1916.
+        target("gno-test", ChainType::Tm2, Some("test5"), gno.uri()),
+        target("ethereum", ChainType::Evm, Some("1"), evm.uri()),
+    ];
+
+    let client = probe::build_client().expect("client");
+    let outcomes = probe::probe_all(&client, targets, Duration::from_secs(5), 4).await;
+    let reports = model::evaluate(outcomes, 50);
+
+    let good = find(&reports, &lumen_ok.uri());
+    assert_eq!(good.status, Status::Ok);
+    assert_eq!(good.height, Some(5_302_462));
+
+    let cached = find(&reports, &lumen_cached.uri());
+    assert_eq!(cached.status, Status::WrongChain);
+    assert_eq!(cached.chain_id.as_deref(), Some("limonata_10777-1"));
+    assert_eq!(cached.height, Some(4_923_377));
+    assert_eq!(cached.behind, None, "behind another chain means nothing");
+    assert_eq!(
+        cached.error.as_deref(),
+        Some("chain id is limonata_10777-1, expected lumen")
+    );
+
+    let gno_row = find(&reports, &gno.uri());
+    assert_eq!(gno_row.status, Status::WrongChain);
+    assert_eq!(gno_row.behind, None);
+
+    let evm_row = find(&reports, &evm.uri());
+    assert_eq!(evm_row.status, Status::WrongChain);
+    assert_eq!(evm_row.chain_id.as_deref(), Some("1916"));
+    assert_eq!(evm_row.behind, None);
+
+    let prom = rpc_prober::report::prom::render(&reports);
+    for url in [lumen_cached.uri(), gno.uri(), evm.uri()] {
+        let up_line = prom
+            .lines()
+            .find(|line| line.starts_with("rpc_up{") && line.contains(&url))
+            .expect("an rpc_up sample for every endpoint");
+        assert!(up_line.ends_with(" 0"), "{up_line}");
+        let other_samples = prom.lines().filter(|line| {
+            (line.starts_with("rpc_block_height{") || line.starts_with("rpc_blocks_behind{"))
+                && line.contains(&url)
+        });
+        assert_eq!(other_samples.count(), 0, "no height or behind for {url}");
+    }
+    let good_up = format!("endpoint=\"{}\",type=\"cosmos\"}} 1", lumen_ok.uri());
+    assert!(prom.contains(&good_up), "{prom}");
+}

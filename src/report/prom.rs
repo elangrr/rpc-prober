@@ -2,20 +2,21 @@
 
 use std::fmt::Write;
 
-use crate::model::EndpointReport;
+use crate::model::{EndpointReport, Status};
 
 /// Render the four metrics. Height and behind are only written for endpoints
-/// that answered, because a down endpoint has no height.
+/// that are up: a down endpoint has no height, and the height of an endpoint
+/// on the wrong chain belongs to another chain.
 pub fn render(reports: &[EndpointReport]) -> String {
     let mut out = String::new();
 
     metric_header(
         &mut out,
         "rpc_up",
-        "1 if the endpoint answered with a block height, else 0.",
+        "1 if the endpoint answered with a block height of the expected chain, else 0.",
     );
     for r in reports {
-        let up = if r.height.is_some() { 1 } else { 0 };
+        let up = if is_up(r) { 1 } else { 0 };
         sample(&mut out, "rpc_up", r, &up.to_string());
     }
 
@@ -24,7 +25,7 @@ pub fn render(reports: &[EndpointReport]) -> String {
         "rpc_block_height",
         "Latest block height the endpoint reported.",
     );
-    for r in reports {
+    for r in reports.iter().filter(|r| is_up(r)) {
         if let Some(height) = r.height {
             sample(&mut out, "rpc_block_height", r, &height.to_string());
         }
@@ -35,7 +36,7 @@ pub fn render(reports: &[EndpointReport]) -> String {
         "rpc_blocks_behind",
         "Blocks below the highest height seen for the same chain.",
     );
-    for r in reports {
+    for r in reports.iter().filter(|r| is_up(r)) {
         if let Some(behind) = r.behind {
             sample(&mut out, "rpc_blocks_behind", r, &behind.to_string());
         }
@@ -52,6 +53,11 @@ pub fn render(reports: &[EndpointReport]) -> String {
     }
 
     out
+}
+
+/// Up means: it answered with a height, and it is on the expected chain.
+fn is_up(r: &EndpointReport) -> bool {
+    r.height.is_some() && r.status != Status::WrongChain
 }
 
 fn metric_header(out: &mut String, name: &str, help: &str) {
@@ -81,7 +87,7 @@ fn escape(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{ChainType, Status};
+    use crate::model::ChainType;
 
     fn row(endpoint: &str, height: Option<u64>, latency_ms: u64) -> EndpointReport {
         EndpointReport {
@@ -107,7 +113,7 @@ mod tests {
             row("https://a", Some(100), 54),
             row("https://b", None, 5000),
         ]);
-        let expected = r#"# HELP rpc_up 1 if the endpoint answered with a block height, else 0.
+        let expected = r#"# HELP rpc_up 1 if the endpoint answered with a block height of the expected chain, else 0.
 # TYPE rpc_up gauge
 rpc_up{chain="atomone",endpoint="https://a",type="cosmos"} 1
 rpc_up{chain="atomone",endpoint="https://b",type="cosmos"} 0

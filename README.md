@@ -84,7 +84,11 @@ Checked in this order; the first match wins:
 5. `ok`
 
 The best height of a chain is the highest height among its endpoints that
-answered and are on the right chain.
+answered and are on the right chain. A `wrong_chain` endpoint keeps the
+height and chain id it reported, so you can see what answered, but gets no
+`behind`: its height belongs to another chain. Set `chain_id` on every chain:
+without it the prober cannot tell that an endpoint (or a cache in front of it)
+answers for another network.
 
 ## JSON schema (schema_version 1)
 
@@ -112,6 +116,7 @@ answered and are on the right chain.
 
 - `status`: `ok`, `lagging`, `catching_up`, `wrong_chain` or `down`
 - `height`, `behind`, `chain_id`: `null` when the endpoint is down
+- `behind`: also `null` when the status is `wrong_chain`
 - `error`: `null` unless the status is `down` or `wrong_chain`
 - `endpoints` is sorted by chain, then height (highest first), then endpoint.
 - A renamed or removed field raises `schema_version`. New fields do not.
@@ -120,9 +125,10 @@ answered and are on the right chain.
 
 `--prom` prints four gauges with labels `chain`, `endpoint`, `type`:
 
-- `rpc_up`: 1 if the endpoint answered with a height, else 0
-- `rpc_block_height`: only for endpoints that answered
-- `rpc_blocks_behind`: only for endpoints that answered
+- `rpc_up`: 1 if the endpoint answered with a height of the expected chain,
+  else 0. A `wrong_chain` endpoint is 0.
+- `rpc_block_height`: only for endpoints with `rpc_up` 1
+- `rpc_blocks_behind`: only for endpoints with `rpc_up` 1
 - `rpc_latency_seconds`: time until the reply or the error
 
 For node_exporter's textfile collector, write to a temp file and rename it.
